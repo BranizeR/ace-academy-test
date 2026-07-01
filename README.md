@@ -263,3 +263,5 @@ Robust validation is enforced on both the client (for UX) and the backend (for d
 *   **RBAC (Role-Based Access Control)**: Restrict actions based on user roles (Admin vs Coach).
 *   **Real-time Notifications**: Notify students of time changes or cancellations.
 *   **Report Exporting**: Download monthly attendance sheets as PDF or Excel files.
+#   a c e - s p o r t s - a c a d e m y - m a n a g e m e n t - s y s t e m  
+ 
