@@ -9,6 +9,7 @@ class Coach {
   final String sportName;
   final int experienceYears;
   final bool isActive;
+  final String? password;
 
   Coach({
     required this.id,
@@ -21,6 +22,7 @@ class Coach {
     required this.sportName,
     required this.experienceYears,
     required this.isActive,
+    this.password,
   });
 
   factory Coach.fromJson(Map<String, dynamic> json) {
@@ -43,7 +45,7 @@ class Coach {
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final data = {
       'id': id,
       'first_name': firstName,
       'last_name': lastName,
@@ -53,5 +55,9 @@ class Coach {
       'experience_years': experienceYears,
       'is_active': isActive,
     };
+    if (password != null && password!.isNotEmpty) {
+      data['password'] = password;
+    }
+    return data;
   }
 }

@@ -11,6 +11,7 @@ class Student {
   final String batchName;
   final String sportName;
   final bool isActive;
+  final String status;
 
   Student({
     required this.id,
@@ -25,6 +26,7 @@ class Student {
     required this.batchName,
     required this.sportName,
     required this.isActive,
+    required this.status,
   });
 
   factory Student.fromJson(Map<String, dynamic> json) {
@@ -48,6 +50,7 @@ class Student {
       batchName: bName,
       sportName: sName,
       isActive: json['is_active'] as bool? ?? true,
+      status: json['status'] as String? ?? 'Pending',
     );
   }
 
@@ -62,6 +65,7 @@ class Student {
       'gender': gender,
       'batch': batchId,
       'is_active': isActive,
+      'status': status,
     };
   }
 }

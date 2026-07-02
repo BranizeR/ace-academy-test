@@ -126,7 +126,8 @@ class DashboardAPITests(APITestCase):
             email="alice@example.com",
             dob=datetime.date(2010, 5, 20),
             gender="F",
-            batch=batch
+            batch=batch,
+            status='Approved'
         )
         student2 = Student.objects.create(
             first_name="Bob",
@@ -135,7 +136,8 @@ class DashboardAPITests(APITestCase):
             email="bob@example.com",
             dob=datetime.date(2008, 10, 12),
             gender="M",
-            batch=batch
+            batch=batch,
+            status='Approved'
         )
 
         # Mark student1 Present, student2 Absent today
@@ -162,4 +164,79 @@ class DashboardAPITests(APITestCase):
         self.assertEqual(response.data['total_batches'], 1)
         self.assertEqual(response.data['present_today'], 1)
         self.assertEqual(response.data['absent_today'], 1)
+
+    def test_coach_dashboard_statistics(self):
+        import datetime
+        from django.contrib.auth.models import User
+        from rest_framework_simplejwt.tokens import RefreshToken
+        from apps.coaches.models import Coach
+        from apps.batches.models import Batch
+        from apps.students.models import Student
+        from apps.attendance.models import Attendance
+
+        # Create Sport
+        sport = Sport.objects.create(name="Tennis", description="Tennis sport")
+
+        # Create Coach User and Profile
+        coach_user = User.objects.create_user(username='coach@example.com', email='coach@example.com', password='password123')
+        coach = Coach.objects.create(
+            user=coach_user,
+            first_name="Coach",
+            last_name="Test",
+            phone="9998882222",
+            email="coach@example.com",
+            sport=sport
+        )
+
+        # Create Batch for this Coach
+        batch = Batch.objects.create(
+            name="Coach Batch",
+            sport=sport,
+            coach=coach,
+            start_time=datetime.time(8, 0),
+            end_time=datetime.time(10, 0),
+            capacity=10
+        )
+
+        # Create Student in this batch
+        student = Student.objects.create(
+            first_name="Alice",
+            last_name="Green",
+            phone="9876543211",
+            email="alice@example.com",
+            dob=datetime.date(2010, 5, 20),
+            gender="F",
+            batch=batch,
+            status='Approved'
+        )
+
+        # Create another Student in another batch (unassigned to this coach)
+        other_batch = Batch.objects.create(
+            name="Other Batch",
+            sport=sport,
+            start_time=datetime.time(10, 0),
+            end_time=datetime.time(12, 0),
+            capacity=10
+        )
+        other_student = Student.objects.create(
+            first_name="Bob",
+            last_name="Smith",
+            phone="9876543212",
+            email="bob@example.com",
+            dob=datetime.date(2008, 10, 12),
+            gender="M",
+            batch=other_batch,
+            status='Approved'
+        )
+
+        # Query dashboard as Coach
+        refresh = RefreshToken.for_user(coach_user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+        dashboard_url = reverse('dashboard')
+        response = self.client.get(dashboard_url, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Should only see 1 student (Alice), not 2
+        self.assertEqual(response.data['total_students'], 1)
+        self.assertEqual(response.data['total_batches'], 1)
 

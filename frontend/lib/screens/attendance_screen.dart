@@ -64,7 +64,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     try {
       // 1. Fetch students for this batch (locally filtering from search/batch_id endpoint or query param)
-      final allStudents = await ApiService.getStudents();
+      final allStudents = await ApiService.getStudents(status: 'Approved');
       final batchStudents = allStudents.where((s) => s.batchId == _selectedBatchId).toList();
 
       // 2. Fetch existing attendance for this batch and date to populate initial statuses
@@ -282,22 +282,24 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           },
                         ),
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _students.isEmpty || _isLoading ? null : _saveAttendance,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            if (ApiService.userRole != 'student') ...[
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _students.isEmpty || _isLoading ? null : _saveAttendance,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Submit Attendance',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ),
-              child: const Text(
-                'Submit Attendance',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
+            ],
           ],
         ),
       ),
@@ -312,7 +314,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     bool isSelected,
   ) {
     return InkWell(
-      onTap: () => _updateStatus(studentId, statusCode),
+      onTap: ApiService.userRole == 'student' ? null : () => _updateStatus(studentId, statusCode),
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

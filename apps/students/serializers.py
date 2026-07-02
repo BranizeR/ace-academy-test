@@ -19,7 +19,7 @@ class StudentSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'first_name', 'last_name', 'full_name', 
             'phone', 'email', 'dob', 'gender', 'batch', 
-            'batch_detail', 'is_active', 'created_at', 'updated_at'
+            'batch_detail', 'is_active', 'status', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 

@@ -353,13 +353,15 @@ class _BatchesScreenState extends State<BatchesScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddBatchDialog,
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-        tooltip: 'Add Batch',
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: ApiService.userRole == 'admin'
+          ? FloatingActionButton(
+              onPressed: _showAddBatchDialog,
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
+              tooltip: 'Add Batch',
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }

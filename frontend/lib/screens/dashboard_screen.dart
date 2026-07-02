@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/stat_card.dart';
 import '../services/api_service.dart';
+import '../services/websocket_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -20,6 +21,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _fetchStats();
+    WebSocketService.addListener(_onWebSocketEvent);
+  }
+
+  @override
+  void dispose() {
+    WebSocketService.removeListener(_onWebSocketEvent);
+    super.dispose();
+  }
+
+  void _onWebSocketEvent(String event) {
+    if (mounted) {
+      _fetchStats();
+    }
   }
 
   Future<void> _fetchStats() async {
@@ -64,9 +78,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Welcome Back, Admin',
-                      style: TextStyle(
+                    Text(
+                      'Welcome Back, ${ApiService.userName ?? 'User'}',
+                      style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.teal,
@@ -93,12 +107,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           icon: Icons.people,
                           gradientColors: const [Colors.teal, Colors.tealAccent],
                         ),
-                        StatCard(
-                          title: 'Total Coaches',
-                          value: _totalCoaches.toString(),
-                          icon: Icons.person,
-                          gradientColors: const [Colors.indigo, Colors.purple],
-                        ),
+                        if (ApiService.userRole == 'admin')
+                          StatCard(
+                            title: 'Total Coaches',
+                            value: _totalCoaches.toString(),
+                            icon: Icons.person,
+                            gradientColors: const [Colors.indigo, Colors.purple],
+                          ),
                         StatCard(
                           title: 'Total Batches',
                           value: _totalBatches.toString(),
@@ -136,14 +151,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           iconColor: Colors.teal,
                           route: '/attendance',
                         ),
-                        _buildQuickActionCard(
-                          context,
-                          title: 'Register Student',
-                          icon: Icons.person_add_alt_1,
-                          color: Colors.blue.shade50,
-                          iconColor: Colors.blue,
-                          route: '/students',
-                        ),
+                        if (ApiService.userRole == 'admin')
+                          _buildQuickActionCard(
+                            context,
+                            title: 'Register Student',
+                            icon: Icons.person_add_alt_1,
+                            color: Colors.blue.shade50,
+                            iconColor: Colors.blue,
+                            route: '/students',
+                          ),
                         _buildQuickActionCard(
                           context,
                           title: 'View Batches',
@@ -152,14 +168,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           iconColor: Colors.orange,
                           route: '/batches',
                         ),
-                        _buildQuickActionCard(
-                          context,
-                          title: 'Manage Coaches',
-                          icon: Icons.badge,
-                          color: Colors.purple.shade50,
-                          iconColor: Colors.purple,
-                          route: '/coaches',
-                        ),
+                        if (ApiService.userRole == 'admin')
+                          _buildQuickActionCard(
+                            context,
+                            title: 'Manage Coaches',
+                            icon: Icons.badge,
+                            color: Colors.purple.shade50,
+                            iconColor: Colors.purple,
+                            route: '/coaches',
+                          ),
                       ],
                     ),
                   ],
@@ -178,7 +195,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required String route,
   }) {
     return InkWell(
-      onTap: () => Navigator.pushNamed(context, route),
+      onTap: () async {
+        await Navigator.pushNamed(context, route);
+        _fetchStats();
+      },
       borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
@@ -218,35 +238,39 @@ class AppNavigationDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final role = ApiService.userRole;
+    final name = ApiService.userName ?? 'User';
+    final roleDisplay = role != null ? role[0].toUpperCase() + role.substring(1) : 'Guest';
+
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          const DrawerHeader(
-            decoration: BoxDecoration(
+          DrawerHeader(
+            decoration: const BoxDecoration(
               color: Colors.teal,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                CircleAvatar(
+                const CircleAvatar(
                   backgroundColor: Colors.white,
                   radius: 30,
                   child: Icon(Icons.sports_soccer, size: 40, color: Colors.teal),
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 Text(
-                  'Ace Sports Academy',
-                  style: TextStyle(
+                  name,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  'Portal Administrator',
-                  style: TextStyle(
+                  roleDisplay,
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 12,
                   ),
@@ -254,18 +278,25 @@ class AppNavigationDrawer extends StatelessWidget {
               ],
             ),
           ),
-          _buildDrawerItem(context, 'Dashboard', Icons.dashboard, '/dashboard'),
-          _buildDrawerItem(context, 'Sports', Icons.sports, '/sports'),
-          _buildDrawerItem(context, 'Batches', Icons.schedule, '/batches'),
-          _buildDrawerItem(context, 'Coaches', Icons.badge, '/coaches'),
-          _buildDrawerItem(context, 'Students', Icons.people, '/students'),
+          if (role == 'admin' || role == 'coach')
+            _buildDrawerItem(context, 'Dashboard', Icons.dashboard, '/dashboard'),
+          if (role == 'admin')
+            _buildDrawerItem(context, 'Sports', Icons.sports, '/sports'),
+          if (role == 'admin' || role == 'coach')
+            _buildDrawerItem(context, 'Batches', Icons.schedule, '/batches'),
+          if (role == 'admin')
+            _buildDrawerItem(context, 'Coaches', Icons.badge, '/coaches'),
+          if (role == 'admin' || role == 'coach')
+            _buildDrawerItem(context, 'Students', Icons.people, '/students'),
+          if (role == 'student')
+            _buildDrawerItem(context, 'Profile', Icons.person, '/student-profile'),
           _buildDrawerItem(context, 'Attendance', Icons.how_to_reg, '/attendance'),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.redAccent),
             title: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
-            onTap: () {
-              Navigator.pushReplacementNamed(context, '/login');
+            onTap: () async {
+              await ApiService.logout();
             },
           ),
         ],

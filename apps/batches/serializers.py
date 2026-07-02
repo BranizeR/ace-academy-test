@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import Batch
 from apps.sports.models import Sport
 from apps.sports.serializers import SportSerializer
+from apps.coaches.models import Coach
+from apps.coaches.serializers import CoachSerializer
 
 class BatchSerializer(serializers.ModelSerializer):
     sport = serializers.PrimaryKeyRelatedField(
@@ -9,11 +11,18 @@ class BatchSerializer(serializers.ModelSerializer):
         help_text="The ID of the sport"
     )
     sport_detail = SportSerializer(source='sport', read_only=True)
+    coach = serializers.PrimaryKeyRelatedField(
+        queryset=Coach.objects.all(),
+        required=False,
+        allow_null=True,
+        help_text="The ID of the coach"
+    )
+    coach_detail = CoachSerializer(source='coach', read_only=True)
 
     class Meta:
         model = Batch
         fields = [
-            'id', 'name', 'sport', 'sport_detail', 
+            'id', 'name', 'sport', 'sport_detail', 'coach', 'coach_detail',
             'start_time', 'end_time', 'capacity', 
             'created_at', 'updated_at'
         ]

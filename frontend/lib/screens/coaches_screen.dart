@@ -79,12 +79,14 @@ class _CoachesScreenState extends State<CoachesScreen> {
     _emailController.clear();
     _expController.clear();
     _selectedSportId = _sports[0].id;
+    final passwordController = TextEditingController();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogCtx) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (dialogCtx, setDialogState) {
             return AlertDialog(
               title: const Text('Add Assistant Coach'),
               content: SingleChildScrollView(
@@ -141,6 +143,17 @@ class _CoachesScreenState extends State<CoachesScreen> {
                           return null;
                         },
                       ),
+                      TextFormField(
+                        controller: passwordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(labelText: 'Password'),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Required';
+                          }
+                          return null;
+                        },
+                      ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<int>(
                         value: _selectedSportId,
@@ -176,7 +189,7 @@ class _CoachesScreenState extends State<CoachesScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(dialogCtx),
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
@@ -194,8 +207,9 @@ class _CoachesScreenState extends State<CoachesScreen> {
                         sportName: selectedSport.name,
                         experienceYears: int.parse(_expController.text.trim()),
                         isActive: true,
+                        password: passwordController.text,
                       );
-                      Navigator.pop(context);
+                      Navigator.pop(dialogCtx);
                       setState(() => _isLoading = true);
 
                       try {
@@ -204,21 +218,17 @@ class _CoachesScreenState extends State<CoachesScreen> {
                           _coaches.insert(0, savedCoach);
                           _isLoading = false;
                         });
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('${savedCoach.fullName} added!')),
-                          );
-                        }
+                        scaffoldMessenger.showSnackBar(
+                          SnackBar(content: Text('${savedCoach.fullName} added!')),
+                        );
                       } catch (e) {
                         setState(() => _isLoading = false);
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(e.toString().replaceAll('Exception: ', '')),
-                              backgroundColor: Colors.redAccent,
-                            ),
-                          );
-                        }
+                        scaffoldMessenger.showSnackBar(
+                          SnackBar(
+                            content: Text(e.toString().replaceAll('Exception: ', '')),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
                       }
                     }
                   },
@@ -230,6 +240,208 @@ class _CoachesScreenState extends State<CoachesScreen> {
         );
       },
     );
+  }
+
+  void _showEditCoachDialog(Coach coach) {
+    if (_sports.isEmpty) return;
+
+    _firstNameController.text = coach.firstName;
+    _lastNameController.text = coach.lastName;
+    _phoneController.text = coach.phone;
+    _emailController.text = coach.email;
+    _expController.text = coach.experienceYears.toString();
+    _selectedSportId = coach.sportId ?? _sports[0].id;
+    final passwordController = TextEditingController();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    bool isCoachActive = coach.isActive;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            return AlertDialog(
+              title: Text('Edit ${coach.fullName}'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: _firstNameController,
+                        decoration: const InputDecoration(labelText: 'First Name'),
+                        validator: (value) => (value == null || value.trim().isEmpty) ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: _lastNameController,
+                        decoration: const InputDecoration(labelText: 'Last Name'),
+                        validator: (value) => (value == null || value.trim().isEmpty) ? 'Required' : null,
+                      ),
+                      TextFormField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(labelText: 'Phone (10 digits)'),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) return 'Required';
+                          if (!RegExp(r'^[1-9]\d{9}$').hasMatch(value)) return 'Enter valid 10-digit phone';
+                          return null;
+                        },
+                      ),
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(labelText: 'Email Address'),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) return 'Required';
+                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) return 'Enter valid email';
+                          return null;
+                        },
+                      ),
+                      TextFormField(
+                        controller: passwordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Password (leave blank to keep current)',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int>(
+                        value: _selectedSportId,
+                        decoration: const InputDecoration(labelText: 'Sport Specialization'),
+                        items: _sports.map((sport) {
+                          return DropdownMenuItem<int>(
+                            value: sport.id,
+                            child: Text(sport.name),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          setDialogState(() => _selectedSportId = val);
+                        },
+                      ),
+                      TextFormField(
+                        controller: _expController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Experience (Years)'),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) return 'Required';
+                          final parsed = int.tryParse(value);
+                          if (parsed == null || parsed < 0) return 'Invalid number';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        title: const Text('Active Status'),
+                        value: isCoachActive,
+                        onChanged: (val) {
+                          setDialogState(() => isCoachActive = val);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate()) {
+                      final selectedSport = _sports.firstWhere((s) => s.id == _selectedSportId);
+                      final updatedCoach = Coach(
+                        id: coach.id,
+                        firstName: _firstNameController.text.trim(),
+                        lastName: _lastNameController.text.trim(),
+                        fullName: '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
+                        phone: _phoneController.text.trim(),
+                        email: _emailController.text.trim(),
+                        sportId: _selectedSportId,
+                        sportName: selectedSport.name,
+                        experienceYears: int.parse(_expController.text.trim()),
+                        isActive: isCoachActive,
+                        password: passwordController.text.isNotEmpty ? passwordController.text : null,
+                      );
+                      Navigator.pop(dialogCtx);
+                      setState(() => _isLoading = true);
+
+                      try {
+                        final savedCoach = await ApiService.updateCoach(updatedCoach);
+                        setState(() {
+                          final idx = _coaches.indexWhere((c) => c.id == coach.id);
+                          if (idx != -1) {
+                            _coaches[idx] = savedCoach;
+                          }
+                          _isLoading = false;
+                        });
+                        scaffoldMessenger.showSnackBar(
+                          SnackBar(content: Text('${savedCoach.fullName} updated!')),
+                        );
+                      } catch (e) {
+                        setState(() => _isLoading = false);
+                        scaffoldMessenger.showSnackBar(
+                          SnackBar(
+                            content: Text(e.toString().replaceAll('Exception: ', '')),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _handleDeleteCoach(Coach coach) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Delete Coach'),
+        content: Text('Are you sure you want to permanently delete ${coach.fullName}? This will also delete their login account.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() => _isLoading = true);
+      try {
+        await ApiService.deleteCoach(coach.id);
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('${coach.fullName} has been deleted.')),
+        );
+        setState(() {
+          _coaches.removeWhere((c) => c.id == coach.id);
+          _isLoading = false;
+        });
+      } catch (e) {
+        setState(() => _isLoading = false);
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -336,6 +548,16 @@ class _CoachesScreenState extends State<CoachesScreen> {
                                           ],
                                         ),
                                       ),
+                                      if (ApiService.userRole == 'admin') ...[
+                                        IconButton(
+                                          icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                                          onPressed: () => _showEditCoachDialog(coach),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                                          onPressed: () => _handleDeleteCoach(coach),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -347,13 +569,15 @@ class _CoachesScreenState extends State<CoachesScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddCoachDialog,
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-        tooltip: 'Add Coach',
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: ApiService.userRole == 'admin'
+          ? FloatingActionButton(
+              onPressed: _showAddCoachDialog,
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
+              tooltip: 'Add Coach',
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }

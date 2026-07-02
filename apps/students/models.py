@@ -2,8 +2,10 @@ from django.db import models
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.contrib.auth.models import User
 
 class Student(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='student_profile')
     GENDER_CHOICES = [
         ('M', 'Male'),
         ('F', 'Female'),
@@ -44,8 +46,14 @@ class Student(models.Model):
         related_name='students',
         help_text="The training batch the student is enrolled in"
     )
+    status = models.CharField(
+        max_length=10,
+        choices=[('Pending', 'Pending'), ('Approved', 'Approved'), ('Rejected', 'Rejected')],
+        default='Pending',
+        help_text="Registration status of the student"
+    )
     is_active = models.BooleanField(
-        default=True,
+        default=False,
         help_text="Designates whether this student is currently active"
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -75,8 +83,17 @@ class Student(models.Model):
                 })
 
     def save(self, *args, **kwargs):
-        self.full_clean()
+        if kwargs.pop('clean', True):
+            self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.batch.name if self.batch else 'Unassigned'})"
+
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+
+@receiver(post_delete, sender=Student)
+def delete_related_user(sender, instance, **kwargs):
+    if instance.user:
+        instance.user.delete()

@@ -7,19 +7,26 @@ import 'screens/coaches_screen.dart';
 import 'screens/students_screen.dart';
 import 'screens/attendance_screen.dart';
 import 'screens/student_profile_screen.dart';
+import 'screens/signup_screen.dart';
 
 import 'services/api_service.dart';
+import 'services/websocket_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiService.init();
-  runApp(const MyApp());
+  final bool authenticated = await ApiService.isAuthenticated();
+  if (authenticated) {
+    WebSocketService.connect();
+  }
+  runApp(MyApp(authenticated: authenticated));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool authenticated;
+  const MyApp({super.key, required this.authenticated});
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +46,9 @@ class MyApp extends StatelessWidget {
           elevation: 0,
         ),
       ),
-      initialRoute: '/login',
+      initialRoute: authenticated
+          ? (ApiService.userRole == 'student' ? '/student-profile' : '/dashboard')
+          : '/login',
       routes: {
         '/login': (context) => const LoginScreen(),
         '/dashboard': (context) => const DashboardScreen(),
@@ -49,6 +58,7 @@ class MyApp extends StatelessWidget {
         '/students': (context) => const StudentsScreen(),
         '/attendance': (context) => const AttendanceScreen(),
         '/student-profile': (context) => const StudentProfileScreen(),
+        '/signup': (context) => const SignupScreen(),
       },
     );
   }

@@ -221,13 +221,15 @@ class _SportsScreenState extends State<SportsScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSportDialog,
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-        tooltip: 'Add Sport',
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: ApiService.userRole == 'admin'
+          ? FloatingActionButton(
+              onPressed: _showAddSportDialog,
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
+              tooltip: 'Add Sport',
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }

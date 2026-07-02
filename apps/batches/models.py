@@ -3,6 +3,14 @@ from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 
 class Batch(models.Model):
+    coach = models.ForeignKey(
+        'coaches.Coach',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='batches',
+        help_text="The coach assigned to this batch"
+    )
     name = models.CharField(
         max_length=100,
         help_text="Name of the batch (e.g., Morning Pro, Evening Beginners)"

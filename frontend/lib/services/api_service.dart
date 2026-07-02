@@ -7,21 +7,82 @@ import '../models/batch.dart';
 import '../models/coach.dart';
 import '../models/student.dart';
 import '../models/attendance.dart';
+import 'websocket_service.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.228.143.100:8000/api';
+  static const String baseUrl = 'http://10.173.248.100:8000/api';
 
   static const String _tokenKey = 'jwt_token';
   static const String _refreshKey = 'jwt_refresh_token';
+  static const String _roleKey = 'user_role';
+  static const String _profileIdKey = 'profile_id';
+  static const String _nameKey = 'user_name';
 
   static String? _accessToken;
   static String? _refreshToken;
+  static String? userRole;
+  static int? profileId;
+  static String? userName;
 
   // INITIALIZE TOKENS
   static Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString(_tokenKey);
     _refreshToken = prefs.getString(_refreshKey);
+    userRole = prefs.getString(_roleKey);
+    profileId = prefs.getInt(_profileIdKey);
+    userName = prefs.getString(_nameKey);
+  }
+
+  // CHECK AUTH STATUS
+  static Future<bool> isAuthenticated() async {
+    if (_accessToken == null) return false;
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/me/'),
+        headers: headers,
+      );
+      if (response.statusCode == 200) {
+        if (userRole == null) {
+          await fetchUserProfile();
+        }
+        return true;
+      } else if (response.statusCode == 401) {
+        final refreshed = await refreshAccessToken();
+        if (refreshed) {
+          await fetchUserProfile();
+          return true;
+        }
+      }
+    } catch (_) {
+      return _accessToken != null;
+    }
+    return false;
+  }
+
+  // FETCH USER PROFILE
+  static Future<void> fetchUserProfile() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/me/'),
+        headers: headers,
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        userRole = data['role'];
+        profileId = data['profile_id'];
+        userName = '${data['first_name']} ${data['last_name']}';
+        
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_roleKey, userRole!);
+        if (profileId != null) {
+          await prefs.setInt(_profileIdKey, profileId!);
+        } else {
+          await prefs.remove(_profileIdKey);
+        }
+        await prefs.setString(_nameKey, userName!);
+      }
+    } catch (_) {}
   }
 
   // LOGIN
@@ -45,19 +106,35 @@ class ApiService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_tokenKey, _accessToken!);
         await prefs.setString(_refreshKey, _refreshToken!);
+        await fetchUserProfile();
         return true;
+      } else {
+        final data = jsonDecode(response.body);
+        final detail = data['detail'] ?? 'Invalid email or password';
+        throw Exception(detail);
       }
-    } catch (_) {}
-    return false;
+    } catch (e) {
+      if (e is Exception && !e.toString().contains('FormatException')) {
+        rethrow;
+      }
+      return false;
+    }
   }
 
   // LOGOUT
   static Future<void> logout() async {
     _accessToken = null;
     _refreshToken = null;
+    userRole = null;
+    profileId = null;
+    userName = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_refreshKey);
+    await prefs.remove(_roleKey);
+    await prefs.remove(_profileIdKey);
+    await prefs.remove(_nameKey);
+    WebSocketService.disconnect();
     navigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
@@ -213,15 +290,55 @@ class ApiService {
     }
   }
 
+  static Future<Coach> updateCoach(Coach coach) async {
+    final response = await _sendRequest(() => http.patch(
+          Uri.parse('$baseUrl/coaches/${coach.id}/'),
+          headers: headers,
+          body: jsonEncode(coach.toJson()),
+        ));
+    if (response.statusCode == 200) {
+      return Coach.fromJson(jsonDecode(response.body));
+    } else {
+      throw _handleError(response);
+    }
+  }
+
+  static Future<void> deleteCoach(int id) async {
+    final response = await _sendRequest(() => http.delete(
+          Uri.parse('$baseUrl/coaches/$id/'),
+          headers: headers,
+        ));
+    if (response.statusCode != 204) {
+      throw _handleError(response);
+    }
+  }
+
   // ================== STUDENT MODULE ==================
 
-  static Future<List<Student>> getStudents({String? search}) async {
-    final uri = Uri.parse('$baseUrl/students/${search != null ? "?search=$search" : ""}');
+  static Future<List<Student>> getStudents({String? search, String? status}) async {
+    final params = <String>[];
+    if (search != null && search.isNotEmpty) params.add('search=$search');
+    if (status != null && status.isNotEmpty) params.add('status=$status');
+    final queryStr = params.isNotEmpty ? '?${params.join('&')}' : '';
+
+    final uri = Uri.parse('$baseUrl/students/$queryStr');
     final response = await _sendRequest(() => http.get(uri, headers: headers));
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final List results = data['results'] ?? [];
       return results.map((item) => Student.fromJson(item)).toList();
+    } else {
+      throw _handleError(response);
+    }
+  }
+
+  static Future<Student> getStudentProfile(int id) async {
+    final response = await _sendRequest(() => http.get(
+          Uri.parse('$baseUrl/students/$id/'),
+          headers: headers,
+        ));
+    if (response.statusCode == 200) {
+      return Student.fromJson(jsonDecode(response.body));
     } else {
       throw _handleError(response);
     }
@@ -236,6 +353,79 @@ class ApiService {
     if (response.statusCode == 201) {
       return Student.fromJson(jsonDecode(response.body));
     } else {
+      throw _handleError(response);
+    }
+  }
+
+  static Future<Student> updateStudent(Student student) async {
+    final response = await _sendRequest(() => http.patch(
+          Uri.parse('$baseUrl/students/${student.id}/'),
+          headers: headers,
+          body: jsonEncode(student.toJson()),
+        ));
+    if (response.statusCode == 200) {
+      return Student.fromJson(jsonDecode(response.body));
+    } else {
+      throw _handleError(response);
+    }
+  }
+
+  static Future<void> deleteStudent(int id) async {
+    final response = await _sendRequest(() => http.delete(
+          Uri.parse('$baseUrl/students/$id/'),
+          headers: headers,
+        ));
+    if (response.statusCode != 204) {
+      throw _handleError(response);
+    }
+  }
+
+  static Future<void> register({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String password,
+    required String phone,
+    required String dob,
+    required String gender,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/register/'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode({
+        'first_name': firstName,
+        'last_name': lastName,
+        'email': email,
+        'password': password,
+        'phone': phone,
+        'dob': dob,
+        'gender': gender,
+      }),
+    );
+    if (response.statusCode != 201) {
+      throw _handleError(response);
+    }
+  }
+
+  static Future<void> approveStudent(int id) async {
+    final response = await _sendRequest(() => http.post(
+          Uri.parse('$baseUrl/students/$id/approve/'),
+          headers: headers,
+        ));
+    if (response.statusCode != 200) {
+      throw _handleError(response);
+    }
+  }
+
+  static Future<void> rejectStudent(int id) async {
+    final response = await _sendRequest(() => http.post(
+          Uri.parse('$baseUrl/students/$id/reject/'),
+          headers: headers,
+        ));
+    if (response.statusCode != 200) {
       throw _handleError(response);
     }
   }

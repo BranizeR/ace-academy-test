@@ -1,20 +1,96 @@
 import 'package:flutter/material.dart';
 import '../models/student.dart';
+import '../services/api_service.dart';
+import 'dashboard_screen.dart';
 
-class StudentProfileScreen extends StatelessWidget {
+class StudentProfileScreen extends StatefulWidget {
   const StudentProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Retrieve Student object from route arguments
-    final student = ModalRoute.of(context)!.settings.arguments as Student;
+  State<StudentProfileScreen> createState() => _StudentProfileScreenState();
+}
 
+class _StudentProfileScreenState extends State<StudentProfileScreen> {
+  Future<Student>? _studentProfileFuture;
+  Student? _argumentsStudent;
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      final args = ModalRoute.of(context)!.settings.arguments;
+      if (args is Student) {
+        _argumentsStudent = args;
+      } else {
+        final profileId = ApiService.profileId;
+        if (profileId != null) {
+          _studentProfileFuture = ApiService.getStudentProfile(profileId);
+        }
+      }
+      _initialized = true;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_argumentsStudent != null) {
+      return _buildProfileContent(context, _argumentsStudent!, showDrawer: false);
+    }
+
+    final profileId = ApiService.profileId;
+    if (profileId == null) {
+      return const Scaffold(
+        body: Center(child: Text('No profile ID found. Please log in again.')),
+      );
+    }
+
+    return FutureBuilder<Student>(
+      future: _studentProfileFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Student Profile', style: TextStyle(fontWeight: FontWeight.bold)),
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
+            ),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Student Profile', style: TextStyle(fontWeight: FontWeight.bold)),
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
+            ),
+            body: Center(child: Text('Error: ${snapshot.error}')),
+          );
+        }
+        if (!snapshot.hasData) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Student Profile', style: TextStyle(fontWeight: FontWeight.bold)),
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
+            ),
+            body: const Center(child: Text('No student data found.')),
+          );
+        }
+        return _buildProfileContent(context, snapshot.data!, showDrawer: true);
+      },
+    );
+  }
+
+  Widget _buildProfileContent(BuildContext context, Student student, {required bool showDrawer}) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Student Profile', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
       ),
+      drawer: showDrawer ? const AppNavigationDrawer(currentRoute: '/student-profile') : null,
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -200,3 +276,4 @@ class StudentProfileScreen extends StatelessWidget {
     );
   }
 }
+

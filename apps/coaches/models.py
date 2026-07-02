@@ -1,7 +1,9 @@
 from django.db import models
 from django.core.validators import RegexValidator
+from django.contrib.auth.models import User
 
 class Coach(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='coach_profile')
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     phone = models.CharField(
@@ -46,3 +48,11 @@ class Coach(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.sport.name if self.sport else 'No Specialization'})"
+
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+
+@receiver(post_delete, sender=Coach)
+def delete_related_user(sender, instance, **kwargs):
+    if instance.user:
+        instance.user.delete()

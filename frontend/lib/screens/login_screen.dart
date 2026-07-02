@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/websocket_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,17 +19,33 @@ class _LoginScreenState extends State<LoginScreen> {
   void _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      final success = await ApiService.login(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-      );
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      if (success) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      } else {
+      try {
+        final success = await ApiService.login(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+        );
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        if (success) {
+          WebSocketService.connect();
+          if (ApiService.userRole == 'student') {
+            Navigator.pushReplacementNamed(context, '/student-profile');
+          } else {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid email or password')),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid email or password')),
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.redAccent,
+          ),
         );
       }
     }
@@ -171,6 +188,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             'Login',
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
+                  ),
+                  const SizedBox(height: 24),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/signup');
+                    },
+                    child: const Text(
+                      "Don't have an account? Sign Up",
+                      style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
