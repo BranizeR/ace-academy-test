@@ -9,8 +9,8 @@ class Coach(models.Model):
         unique=True,
         validators=[
             RegexValidator(
-                regex=r'^\+?[1-9]\d{9,14}$',
-                message="Phone number must be in the format: '+919999999999' or '9999999999'. Must be between 10 to 15 digits."
+                regex=r'^[1-9]\d{9}$',
+                message="Phone number must be exactly 10 digits (first digit cannot be 0)."
             )
         ],
         help_text="Contact number of the coach (must be unique)"

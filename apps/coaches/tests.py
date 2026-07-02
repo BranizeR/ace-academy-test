@@ -1,12 +1,17 @@
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+from django.contrib.auth.models import User
+from rest_framework_simplejwt.tokens import RefreshToken
 from apps.sports.models import Sport
 from .models import Coach
 
 class CoachAPITests(APITestCase):
 
     def setUp(self):
+        self.user = User.objects.create_user(username='testuser', email='test@example.com', password='password123')
+        refresh = RefreshToken.for_user(self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
         self.sport = Sport.objects.create(name="Football", description="Football sport")
         self.coach = Coach.objects.create(
             first_name="John",
@@ -24,7 +29,7 @@ class CoachAPITests(APITestCase):
         data = {
             "first_name": "Jane",
             "last_name": "Smith",
-            "phone": "+919876543211",
+            "phone": "9876543211",
             "email": "jane.smith@example.com",
             "sport": self.sport.id,
             "experience_years": 3,

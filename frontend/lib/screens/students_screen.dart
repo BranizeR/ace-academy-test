@@ -125,8 +125,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                           if (value == null || value.trim().isEmpty) {
                             return 'Required';
                           }
-                          if (!RegExp(r'^\+?[1-9]\d{9,14}$').hasMatch(value)) {
-                            return 'Enter valid 10-15 digit phone';
+                          if (!RegExp(r'^[1-9]\d{9}$').hasMatch(value)) {
+                            return 'Enter valid 10-digit phone';
                           }
                           return null;
                         },

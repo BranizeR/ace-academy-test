@@ -1,11 +1,16 @@
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+from django.contrib.auth.models import User
+from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Sport
 
 class SportAPITests(APITestCase):
 
     def setUp(self):
+        self.user = User.objects.create_user(username='testuser', email='test@example.com', password='password123')
+        refresh = RefreshToken.for_user(self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
         self.sport = Sport.objects.create(
             name="Football",
             description="A game played with a round ball and two teams."
@@ -80,6 +85,12 @@ class SportAPITests(APITestCase):
 class DashboardAPITests(APITestCase):
 
     def test_dashboard_statistics(self):
+        from django.contrib.auth.models import User
+        from rest_framework_simplejwt.tokens import RefreshToken
+        user = User.objects.create_user(username='dashboarduser', email='db@example.com', password='password123')
+        refresh = RefreshToken.for_user(user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+
         import datetime
         from apps.coaches.models import Coach
         from apps.batches.models import Batch

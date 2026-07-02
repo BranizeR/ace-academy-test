@@ -2,6 +2,8 @@ import datetime
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+from django.contrib.auth.models import User
+from rest_framework_simplejwt.tokens import RefreshToken
 from apps.sports.models import Sport
 from apps.batches.models import Batch
 from .models import Student
@@ -9,6 +11,9 @@ from .models import Student
 class StudentAPITests(APITestCase):
 
     def setUp(self):
+        self.user = User.objects.create_user(username='testuser', email='test@example.com', password='password123')
+        refresh = RefreshToken.for_user(self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
         self.sport = Sport.objects.create(name="Football", description="Football sport")
         self.batch = Batch.objects.create(
             name="Morning A",
